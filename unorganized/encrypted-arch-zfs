@@ -1,0 +1,249 @@
+# Set up partition scheme
+## Create 128M EFI partition and a linux basic data partition spanning the remaining space
+cfdisk /dev/diskOrPart
+
+## Set up encrypted disk on larger partition and open it
+cryptsetup -c aes-xts-plain64 -y --use-random luksFormat /dev/diskOrPart2
+cryptsetup luksOpen /dev/diskOrPart2 zroot
+
+## Create EFI filesystem
+mkfs.fat -F32 /dev/diskOrPart1
+
+# Set up zfs pool for installation
+## Create pool
+zpool create -f -o ashift=12 \
+ -O acltype=posixacl \
+ -O relatime=on \
+ -O xattr=sa \
+ -O dnodesize=legacy \
+ -O normalization=formD \
+ -O mountpoint=none \
+ -O canmount=off \
+ -O devices=off \
+ -R /mnt \
+ -O compression=zstd \
+ -O dedup=on \
+ zroot /dev/mapper/zroot
+
+## Create default datasets for installation
+### Root directory
+zfs create -o mountpoint=/ -o canmount=noauto zroot/root
+### Home directory
+zfs create -o mountpoint=/home zroot/home
+### Root user directory
+zfs create -o mountpoint=/root zroot/home/root
+### My home directory
+zfs create -o mountpoint=/home/matthew zroot/home/matthew
+
+### Create `/var/*` datasets (special behaviour)
+zfs create -o mountpoint=/var -o canmount=noauto zroot/var
+zfs create -o mountpoint=/var/log zroot/var/log
+zfs create -o mountpoint=/var/lib -o canmount=noauto zroot/var/lib
+### Only if using libvirt
+#zfs create -o mountpoint=/var/lib/libvirt zroot/var/lib/libvirt
+zfs create -o mountpoint=/var/lib/docker zroot/var/lib/docker
+
+### Ensure everything looks correct
+zfs list -o name,used,avail,mountpoint,canmount
+
+### Export and re-import pool at `/mnt`
+zpool export zroot
+zpool import -R /mnt zroot
+
+### Set up bootfs property
+zpool set bootfs=zroot/root zroot
+
+### Mount all datasets in order
+zfs mount zroot/root
+zfs mount zroot/home
+zfs mount zroot/home/root
+zfs mount zroot/home/matthew
+zfs mount zroot/var
+zfs mount zroot/var/log
+zfs mount zroot/var/lib
+zfs mount zroot/var/lib/docker
+
+### Set up zfs cache for pool
+zpool set cachefile=/etc/zfs/zpool.cache zroot
+
+### Copy zpool cache to installation root
+mkdir -p /mnt/etc/zfs
+cp /etc/zfs/zpool.cache /mnt/etc/zfs/
+
+# Install base system
+## Mount EFI partition
+mkdir -p /mnt/boot
+mount /dev/diskOrPart1 /mnt/boot
+
+## Install arch
+pacstrap /mnt \
+ base \
+ base-devel \
+ llvm \
+ cmake \
+ go \
+ zsh \
+ neovim \
+ git \
+ efibootmgr \
+ linux \
+ linux-headers \
+ linux-api-headers \
+ linux-firmware \
+ intel-ucode \
+ mkinitcpio \
+ dkms \
+ arch-install-scripts \
+ reflector \
+ pv \
+ pigz \
+ sudo \
+ dhcpcd \
+ udisks2 \
+ tmux
+
+## Set up system locales
+echo -e "LANG=en_US.UTF-8\nLC_ALL=C\nLANGUAGE=en_US" > /etc/locale.conf
+echo -e "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+
+## Configure makepkg
+nvim /etc/makepkg.conf
+:%s/PKGEXT='.pkg.tar.zst'/PKGEXT='.pkg.tar'/g
+:%s/#MAKEFLAGS="-j2"/MAKEFLAGS="-j`nproc`"/g
+:wq
+
+## Configure pacman
+1. Enable multilib repo
+2. Add "ILoveCandy" under the options section
+
+## Enter chroot for installation
+arch-chroot /mnt
+
+## Configure reflector
+reflector \
+ --save /etc/pacman.d/mirrorlist \
+ --country Canada,"United States" \
+ --threads 32 \
+ --protocol https \
+ --fastest 15 \
+ --latest 15
+printf "--save /etc/pacman.d/mirrorlist\n--country Canada,\"United States\"\n--threads 32\n--protocol https\n--fastest 15\n--latest 15" > /etc/xdg/reflector/reflector.conf
+systemctl enable reflector
+
+## Configure the system clock and enable ntp
+ln -s /usr/share/zoneinfo/America/Toronto /etc/localtime
+hwclock --systohc --utc
+timedatectl set-ntp true
+
+## Create non-root user
+useradd matthew
+usermod -aG wheel matthew
+mkhomedir_helper matthew
+chown -R matthew:matthew /home/matthew
+
+## Create password for root user and non-root user
+passwd
+passwd matthew
+
+## Configure sudo
+EDITOR=nvim visudo
+:%s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/g
+:wq
+
+## Install yay
+su matthew
+cd
+mkdir -p Git
+cd Git
+git clone https://aur.archlinux.org/yay-bin.git
+cd yay-bin
+makepkg -s
+exit
+pacman -U /home/matthew/Git/yay-bin/yay-bin*.pkg.tar
+
+## Install zfs-dkms and zfs-utils
+su matthew
+yay -Syu --sudoloop --noconfirm zfs-dkms zfs-utils mkinitcpio-sd-zfs
+exit
+
+## Set up initramfs configuration
+## TODO: Experiment with sd-vconsole fonts (see arch docs)
+nvim /etc/mkinitcpio.conf
+:%s/MODULES=()/MODULES=(zfs vfat)/g
+:g/^HOOKS=(/d
+:wq
+echo -e "HOOKS=(base systemd autodetect keyboard modconf block filesystems sd-encrypt sd-zfs fsck)" >> /etc/mkinitcpio.conf
+nvim /etc/mkinitcpio.d/linux.preset
+:%s/PRESETS=('default' 'fallback')/PRESETS=('default')/g
+:%s/^fallback/#fallback/g
+:wq
+mkinitcpio -p linux
+
+## Install arch-efiboot to build efi-stub linux image
+su matthew
+yay -Sy --sudoloop --noconfirm arch-efiboot
+exit
+
+## Optional: Generate a keyfile on a FAT32 keyfile fob
+# NOTE: This is an optional example keyfile generation step, which is not
+# necessarily secure. You should think carefully about how your decryption flow
+# works and if using a keyfile, and how you generate it, is applicable to you
+mkfs.fat -F32 /dev/keyfileDiskOrPart1
+mount /dev/keyfileDiskOrPart1 /mnt
+dd if=/dev/urandom of=/mnt/key.bin bs=1k count=4
+sync
+cryptsetup luksAddKey /dev/diskOrPart2 /mnt/key.bin
+umount /dev/keyfileDiskOrPart1
+
+## Set up linux cmdline arguments to configure encrypted zfs boot
+# NOTES:
+#  - Add `quiet` to the end of the kernel params for no-echo boot
+#  - If not using a keyfile, remove the first `rd.luks.options` and
+#    `rd.luks.key` parameters from the kernel cmdline. Also skip the
+#    `export KEYFILE_UUID` line
+export CRYPT_UUID="$(blkid /dev/diskOrPart2 -o value | tr '\n' ' ' | awk '{print $1}')"
+export KEYFILE_UUID="$(blkid /dev/keyfileDiskOrPart1 -o value | tr '\n' ' ' | awk '{print $1}')"
+echo "rd.luks.options=$CRYPT_UUID=keyfile-timeout=10s rd.luks.key=$CRYPT_UUID=/key.bin:UUID=$KEYFILE_UUID rd.luks.options=password-echo=no rd.luks.name=$CRYPT_UUID=zroot spl.spl_hostid=0x$(hostid) zfs=zroot/root zfs_force=1 root=zfs:zroot/root intel_iommu=on rw" > /boot/cmdline.txt
+build_efi_kernels
+
+## Generate fstab (from outside of arch-chroot)
+exit
+genfstab -pU /mnt > /mnt/etc/fstab
+echo "" >> /etc/fstab
+arch-chroot /mnt
+nvim /etc/fstab
+:%s/^zroot/#zroot/g
+:%s/,errors=remount-ro//g
+:wq
+echo -e "#tmpfs ramdisk\ntmpfs	/tmp	tmpfs	defaults,noatime,mode=1777	0	0" >> /etc/fstab
+
+## Set up automatic zfs partition mounting
+systemctl enable zfs.target zfs-import-cache.service zfs-mount.service zfs-import.target
+
+## Enable dhcpcd
+systemctl enable dhcpcd
+
+## Set up hostname
+echo "MY_HOSTNAME" > /etc/hostname
+
+## Disable autoloading the pcspkr module because it's not 1980
+echo "blacklist pcspkr" > /etc/modprobe.d/nobeep.conf
+
+## Rebuild initramfs and efi shim
+mkinitcpio -p linux
+build_efi_kernels
+
+## Add efiboot entry
+# NOTE: Run `efibootmgr` to find a free bootnum before running these commands
+export BOOTNUM=0000
+efibootmgr -c -b $BOOTNUM -d /dev/diskOrPart1 -p 1 -l "linux.efi" -L "Arch"
+efibootmgr -o $BOOTNUM
+
+## Umount everything and boot into your new system
+exit
+umount /dev/diskOrPart1
+zfs umount -a
+zpool export zroot
+cryptsetup close zroot
+reboot

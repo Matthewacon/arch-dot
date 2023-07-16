@@ -1,2 +1,2 @@
 # arch-dot
-System configuration, dotfiles and documentation
+System configurations, dotfiles and documentation
