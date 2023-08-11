@@ -27,7 +27,7 @@ zpool create -f -o ashift=12 \
 
 ## Create default datasets for installation
 ### Root directory
-zfs create -o mountpoint=/ -o canmount=noauto zroot/root
+zfs create -o mountpoint=/  zroot/root
 ### Home directory
 zfs create -o mountpoint=/home zroot/home
 ### Root user directory
@@ -36,9 +36,9 @@ zfs create -o mountpoint=/root zroot/home/root
 zfs create -o mountpoint=/home/matthew zroot/home/matthew
 
 ### Create `/var/*` datasets (special behaviour)
-zfs create -o mountpoint=/var -o canmount=noauto zroot/var
+zfs create -o mountpoint=/var zroot/var
 zfs create -o mountpoint=/var/log zroot/var/log
-zfs create -o mountpoint=/var/lib -o canmount=noauto zroot/var/lib
+zfs create -o mountpoint=/var/lib zroot/var/lib
 ### Only if using libvirt
 #zfs create -o mountpoint=/var/lib/libvirt zroot/var/lib/libvirt
 zfs create -o mountpoint=/var/lib/docker zroot/var/lib/docker
@@ -100,7 +100,9 @@ pacstrap /mnt \
  sudo \
  dhcpcd \
  udisks2 \
- tmux
+ tmux \
+ htop \
+ openssh
 
 ## Set up system locales
 echo -e "LANG=en_US.UTF-8\nLC_ALL=C\nLANGUAGE=en_US" > /etc/locale.conf
@@ -128,7 +130,7 @@ reflector \
  --protocol https \
  --fastest 15 \
  --latest 15
-printf "--save /etc/pacman.d/mirrorlist\n--country Canada,\"United States\"\n--threads 32\n--protocol https\n--fastest 15\n--latest 15" > /etc/xdg/reflector/reflector.conf
+echo -e "--save /etc/pacman.d/mirrorlist\n--country Canada,\"United States\"\n--threads 32\n--protocol https\n--fastest 15\n--latest 15" > /etc/xdg/reflector/reflector.conf
 systemctl enable reflector
 
 ## Configure the system clock and enable ntp
@@ -164,7 +166,7 @@ pacman -U /home/matthew/Git/yay-bin/yay-bin*.pkg.tar
 
 ## Install zfs-dkms and zfs-utils
 su matthew
-yay -Syu --sudoloop --noconfirm zfs-dkms zfs-utils mkinitcpio-sd-zfs
+yay -Syu --sudoloop --noconfirm zfs-dkms zfs-utils mkinitcpio-sd-zfs arch-efiboot
 exit
 
 ## Set up initramfs configuration
@@ -179,11 +181,6 @@ nvim /etc/mkinitcpio.d/linux.preset
 :%s/^fallback/#fallback/g
 :wq
 mkinitcpio -p linux
-
-## Install arch-efiboot to build efi-stub linux image
-su matthew
-yay -Sy --sudoloop --noconfirm arch-efiboot
-exit
 
 ## Optional: Generate a keyfile on a FAT32 keyfile fob
 # NOTE: This is an optional example keyfile generation step, which is not

@@ -1,0 +1,37 @@
+# NOTE: This document extends from `encrypted-arch-zfs`
+
+# Add intel video drivers
+## Install all deps
+yay -Sy --noconfirm --sudoloop \
+ mesa \
+ lib32-mesa \
+ vulkan-intel \
+ lib32-vulkan-intel \
+ intel-media-driver
+
+## Add GuC / HuC intel uC blob support
+echo -e "options i915 enable_guc=2" > /etc/modprobe.d/i915.conf
+
+# TODO: i3-gaps, kitty, sddm, firefox-nightly-bin, nerd fonts
+yay -Sy --noconfirm --sudoloop \
+ i3-gaps \
+ sddm \
+ firefox-nightly-bin \
+ kitty
+
+# Configure credentials
+## Generate SSH and GPG keys
+ssh-keygen -t ed25519
+gpg --full-generate-key
+export KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
+# Add SSH and GPG keys to GitHub/whatever else
+# Add the following line to ~/.zshrc or ~/.bashrc
+export GPG_TTY=$(tty)
+
+
+## Configure Git
+git config --global user.name "Matthewacon"
+git config --global user.email "matthewjbarichello@gmail.com"
+git config --global user.signingkey $KEY_ID 
+git config --global commit.gpgsign true
+unset KEY_ID
