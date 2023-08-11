@@ -23,11 +23,16 @@ yay -Sy --noconfirm --sudoloop \
 ## Generate SSH and GPG keys
 ssh-keygen -t ed25519
 gpg --full-generate-key
-export KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
+export PRIV_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
+export PUB_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i pub | awk '{split($2,dst,"/"); print dst[2]}')
 # Add SSH and GPG keys to GitHub/whatever else
-# Add the following line to ~/.zshrc or ~/.bashrc
+cat ~/.ssh/id_*.pub
+gpg --armor --export $PUB_KEY_ID
+unset $PUB_KEY_ID
+# If using bash, add the following line to your ~/.bashrc
 export GPG_TTY=$(tty)
-
+# If using zsh, add the following line to your ~/.zshrc
+export GPG_TTY=$TTY
 
 ## Configure Git
 git config --global user.name "Matthewacon"
