@@ -1,6 +1,82 @@
-# TODO: Bulk encrypt drives
+## TODO:
+# - Come up with root keyfile generation from seed phrase, add to storage server root disk, re-derive all array disk keyfiles
+# - Check for errors on all critical operations
 
-# Set up 
+## NOTE: This should be a space delimited list of drives that you wnat to encrypt
+export DRIVES=$(echo /dev/sd{b..y})
+export KEYFILE_DEVICE=/path/to/keyfileDevice
+export KEYFILE_DEVICE_UUID=$(blkid "$KEYFILE_DEVICE" | awk '{split($2,dst,"\""); print dst[2]}')
+export KEYFILE_DIR_PATH=/path/to/keyfileDeviceMount
+export ROOT_KEYFILE=$KEYFILE_DIR_PATH/rootKeyfile.bin
+
+## Bulk encrypt drives
+unlocked_drives=""
+kernel_cmdline=""
+for drive in $DRIVES; do
+ # Ensure provided drive actually exists
+ if [[ ! -b "$drive" ]]; then
+  printf 'Could not find drive "%s"!\n' "$drive"
+  exit -1
+ fi
+
+ # Get drive serial number
+ serial_id=$(udevadm info --query=all "$drive" | grep ID_SERIAL= | awk '{split($2,dst,"ID_SERIAL="); print dst[2]}')
+ if [[ ${#serial_id} == 0 ]]; then
+  printf 'Could not find serial number for drive "%s"!\n' "$drive"
+  exit -1
+ fi
+ printf 'Found drive %s (%s)!\n' "$drive" "$serial_id"
+
+ # Create GPT partition scheme and 1 filled linux partition
+ printf 'Creating GPT for "%s" (%s)...\n' "$drive" "$serial_id"
+ wipefs -fa "$drive" > /dev/null
+ parted "$drive" mklabel gpt mkpart \"\" 0% 100% > /dev/null 2>&1
+ partprobe
+ disk_uuid=$(blkid "${drive}1" | awk '{split($2,dst,"\""); print dst[2]}')
+ printf 'Done! GPT part UUID: %s\n' "$disk_uuid"
+
+ # Generate derived keyfile
+ printf 'Generating keyfile for "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ keyfile_dir="$KEYFILE_DIR_PATH/array"
+ mkdir -p "$keyfile_dir"
+ keyfile="$keyfile_dir/$disk_uuid.key"
+ openssl enc \
+  -aes-256-ofb \
+  -iter 1000 \
+  -nosalt \
+  -in "$ROOT_KEYFILE" -out "$keyfile" \
+  -k "$disk_uuid"
+ printf 'Done! Keyfile written to "%s"\n' "$keyfile"
+
+ # Encrypt drive
+ printf 'Encrypting "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ cryptsetup \
+  -q \
+  -c aes-xts-plain64 \
+  --use-random \
+  --key-file "$keyfile" \
+  luksFormat "${drive}1"
+ printf 'Done!\n'
+
+ # Unlock drive
+ printf 'Opening "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ cryptsetup luksOpen \
+  --key-file "$keyfile" \
+  "${drive}1" "$disk_uuid"
+ unlocked_drives="$unlocked_drives /dev/mapper/$disk_uuid"
+ printf 'Done!\n'
+
+ # Add keyfile kernel parameters for unlocking storage disk
+ disk_keyfile_path=$(realpath --relative-to="$KEYFILE_DIR_PATH" "$keyfile")
+ kernel_unlock_cmdline="rd.luks.options=$disk_uuid:keyfile-timeout=10s rd.luks.key=$disk_uuid=/$disk_keyfile_path:UUID=$KEYFILE_DEVICE_UUID"
+ kernel_cmdline="$kernel_cmdline $kernel_unlock_cmdline"
+done
+
+## Emit linux kernel parameters for unlocking the storage array
+printf 'Add the following parameters to your kernel cmdline:\n%s\n' "$kernel_cmdline"
+
+## TODO: Set up zfs array
+# Create storage array
 zpool create -f -o ashift=12 \
  -O acltype=posixacl \
  -O relatime=on \
@@ -13,4 +89,6 @@ zpool create -f -o ashift=12 \
  -R /mnt \
  -O compression=zstd \
  -O dedup=on \
- zroot /dev/mapper/zroot
+ zstorage raidz3 $unlocked_drives
+
+# TODO: Create encrypted/plain datasets
