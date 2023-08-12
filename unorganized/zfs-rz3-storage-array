@@ -30,24 +30,23 @@ for drive in $DRIVES; do
  wipefs -fa "$drive" > /dev/null
  parted "$drive" mklabel gpt mkpart \"\" 0% 100% > /dev/null 2>&1
  partprobe
- disk_uuid=$(blkid "${drive}1" | awk '{split($2,dst,"\""); print dst[2]}')
- printf 'Done! GPT part UUID: %s\n' "$disk_uuid"
+ printf 'Done! GPT part UUID: %s\n' "$serial_id"
 
  # Generate derived keyfile
- printf 'Generating keyfile for "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ printf 'Generating keyfile for "%s" (%s)...\n' "${drive}1" "$serial_id"
  keyfile_dir="$KEYFILE_DIR_PATH/array"
  mkdir -p "$keyfile_dir"
- keyfile="$keyfile_dir/$disk_uuid.key"
+ keyfile="$keyfile_dir/$serial_id.key"
  openssl enc \
   -aes-256-ofb \
   -iter 1000 \
   -nosalt \
   -in "$ROOT_KEYFILE" -out "$keyfile" \
-  -k "$disk_uuid"
+  -k "$serial_id"
  printf 'Done! Keyfile written to "%s"\n' "$keyfile"
 
  # Encrypt drive
- printf 'Encrypting "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ printf 'Encrypting "%s" (%s)...\n' "${drive}1" "$serial_id"
  cryptsetup \
   -q \
   -c aes-xts-plain64 \
@@ -57,16 +56,17 @@ for drive in $DRIVES; do
  printf 'Done!\n'
 
  # Unlock drive
- printf 'Opening "%s" (%s)...\n' "${drive}1" "$disk_uuid"
+ printf 'Opening "%s" (%s)...\n' "${drive}1" "$serial_id"
  cryptsetup luksOpen \
   --key-file "$keyfile" \
-  "${drive}1" "$disk_uuid"
- unlocked_drives="$unlocked_drives /dev/mapper/$disk_uuid"
+  "${drive}1" "zstorage-$serial_id"
+ unlocked_drives="$unlocked_drives /dev/mapper/zstorage-$serial_id"
  printf 'Done!\n'
 
  # Add keyfile kernel parameters for unlocking storage disk
+ part_uuid=$(blkid "${drive}1" | awk '{split($2,dst,"\""); print dst[2]}')
  disk_keyfile_path=$(realpath --relative-to="$KEYFILE_DIR_PATH" "$keyfile")
- crypttab_entry="$disk_uuid UUID=$disk_uuid /$disk_keyfile_path:UUID=$KEYFILE_DEVICE_UUID luks,keyfile-timeout=60s,headless=true,password-echo=no"
+ crypttab_entry="zstorage-$serial_id UUID=$part_uuid /$disk_keyfile_path:UUID=$KEYFILE_DEVICE_UUID luks,keyfile-timeout=60s,headless=true,password-echo=no"
  crypttab_entries="$crypttab_entries\n$crypttab_entry"
 done
 
@@ -93,4 +93,4 @@ zpool create -f -o ashift=12 \
  zstorage raidz3 $unlocked_drives
 
 # TODO: Create encrypted/plain datasets
-
+# TODO: Automatic pool import
