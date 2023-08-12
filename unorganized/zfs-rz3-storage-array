@@ -1,6 +1,4 @@
-## TODO:
-# - Come up with root keyfile generation from seed phrase, add to storage server root disk, re-derive all array disk keyfiles
-# - Check for errors on all critical operations
+## TODO: Check for errors on all critical operations
 
 ## NOTE: This should be a space delimited list of drives that you wnat to encrypt
 export DRIVES=$(echo /dev/sd{b..y})
@@ -11,7 +9,7 @@ export ROOT_KEYFILE=$KEYFILE_DIR_PATH/rootKeyfile.bin
 
 ## Bulk encrypt drives
 unlocked_drives=""
-kernel_cmdline=""
+crypttab_entries=""
 for drive in $DRIVES; do
  # Ensure provided drive actually exists
  if [[ ! -b "$drive" ]]; then
@@ -68,12 +66,15 @@ for drive in $DRIVES; do
 
  # Add keyfile kernel parameters for unlocking storage disk
  disk_keyfile_path=$(realpath --relative-to="$KEYFILE_DIR_PATH" "$keyfile")
- kernel_unlock_cmdline="rd.luks.options=$disk_uuid:keyfile-timeout=10s rd.luks.key=$disk_uuid=/$disk_keyfile_path:UUID=$KEYFILE_DEVICE_UUID"
- kernel_cmdline="$kernel_cmdline $kernel_unlock_cmdline"
+ crypttab_entry="$disk_uuid UUID=$disk_uuid /$disk_keyfile_path:UUID=$KEYFILE_DEVICE_UUID luks,keyfile-timeout=60s,headless=true,password-echo=no"
+ crypttab_entries="$crypttab_entries\n$crypttab_entry"
 done
 
 ## Emit linux kernel parameters for unlocking the storage array
-printf 'Add the following parameters to your kernel cmdline:\n%s\n' "$kernel_cmdline"
+printf 'The following entries have been added to `/etc/crypttab.initramfs`:%b\n' "$crypttab_entries"
+echo -e "$crypttab_entries" >> /etc/crypttab.initramfs
+mkinitcpio -p linux
+build_efi_kernels
 
 ## TODO: Set up zfs array
 # Create storage array
@@ -92,3 +93,4 @@ zpool create -f -o ashift=12 \
  zstorage raidz3 $unlocked_drives
 
 # TODO: Create encrypted/plain datasets
+
