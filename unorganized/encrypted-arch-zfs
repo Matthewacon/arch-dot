@@ -103,7 +103,13 @@ pacstrap /mnt \
  udisks2 \
  tmux \
  htop \
- openssh
+ openssh \
+ dosfstools \
+ systemd-ukify \
+ sbsigntools \
+ man-db \
+ iw \
+ wpa_supplicant
 
 ## Set up system locales
 echo -e "LANG=en_US.UTF-8\nLC_ALL=C\nLANGUAGE=en_US" > /etc/locale.conf
@@ -167,7 +173,12 @@ pacman -U /home/matthew/Git/yay-bin/yay-bin*.pkg.tar
 
 ## Install zfs-dkms and zfs-utils
 su matthew
-yay -Syu --sudoloop --noconfirm zfs-dkms zfs-utils mkinitcpio-sd-zfs arch-efiboot
+yay -Syu --sudoloop --noconfirm \
+ zfs-dkms \
+ zfs-utils \
+ mkinitcpio-sd-zfs \
+ mkinitcpio-firmware \
+ systemd-ukify
 exit
 
 ## Set up initramfs configuration
@@ -182,6 +193,9 @@ nvim /etc/mkinitcpio.d/linux.preset
 :%s/^fallback/#fallback/g
 :wq
 mkinitcpio -p linux
+
+## Build EFI stub
+# Run ./efi-stub.sh
 
 ## Optional: Generate a keyfile on a FAT32 keyfile fob
 # NOTE:
