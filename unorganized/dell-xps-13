@@ -24,7 +24,7 @@ yay -Sy --noconfirm --sudoloop \
 ssh-keygen -t ed25519
 gpg --full-generate-key
 export PRIV_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
-export PUB_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i pub | awk '{split($2,dst,"/"); print dst[2]}')
+export PUB_KEY_ID=$(gpg --list-public-keys --keyid-format=long Matthew | grep -i pub | awk '{split($2,dst,"/"); print dst[2]}')
 # Add SSH and GPG keys to GitHub/whatever else
 cat ~/.ssh/id_*.pub
 gpg --armor --export $PUB_KEY_ID
