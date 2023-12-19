@@ -1,0 +1,3 @@
+- [ ] Configure conky transparency, window placement and autostart with i3
+- [ ] Theme GTK
+- [ ] Theme Spotify

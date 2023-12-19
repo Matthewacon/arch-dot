@@ -1,0 +1,5 @@
+@import "tokyonight-config.rasi"
+
+listview {
+  lines: 3;
+}

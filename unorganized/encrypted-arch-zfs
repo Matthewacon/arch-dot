@@ -109,7 +109,8 @@ pacstrap /mnt \
  sbsigntools \
  man-db \
  iw \
- wpa_supplicant
+ wpa_supplicant \
+ unzip
 
 ## Set up system locales
 echo -e "LANG=en_US.UTF-8\nLC_ALL=C\nLANGUAGE=en_US" > /etc/locale.conf

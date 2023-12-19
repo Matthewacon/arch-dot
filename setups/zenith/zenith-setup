@@ -1,0 +1,174 @@
+#!/bin/bash
+
+# Enable journald persistent logs between boots
+mkdir -p /var/log/journal
+rm /etc/systemd/journald.conf
+ln -s $PWD/etc/systemd/journald.conf /etc/systemd/journald.conf
+
+# Graphics drivers
+yay -Sy --noconfirm --sudoloop \
+ libva-nvidia-driver \
+ nvidia-utils \
+ lib32-nvidia-utils \
+ nvidia-settings \
+ mesa \
+ lib32-mesa \
+ mesa-utils \
+ vulkan-icd-loader \
+ lib32-vulkan-icd-loader \
+ vulkan-tools \
+ xorg-xdpyinfo \
+ xorg-xrdb \
+ xsettingsd \
+ ddcutil
+
+# Add user to i2c group to allow reading from / writing to i2c devices
+usermod -aG i2c matthew
+
+# Misc desktop environment
+yay -Sy --noconfirm --sudoloop \
+ sddm \
+ i3-gaps \
+ dmenu \
+ j4-dmenu-desktop \
+ pulseaudio \
+ firefox-bin \
+ rofi \
+ kitty \
+ feh \
+ xwinwrap-git \
+ perl \
+ ffmpeg \
+ mpv \
+ vlc \
+ conky-git \
+ picom \
+ fzf \
+ ripgrep
+
+## Configure nvidia drivers
+# Add: `nvidia nvidia_modeset nvidia_uvm nvidia_drm` to the `MODULES` line in `/etc/mkinitcpio.conf`
+rm /etc/mkinitcpio.d/linux.preset
+ln -s $PWD/files/etc/mkinitcpio.d/linux.preset /etc/mkinitcpio.d/
+rm /etc/mkinitcpio.conf
+ln -s $PWD/files/etc/mkinitcpio.conf /etc/mkinitcpio.conf
+mkinitcpio -p linux
+./efi-stub.sh
+
+## Copy the nvidia Xorg config because configuration hell (/etc/X11/xorg.conf)
+rm /etc/X11/xorg.conf
+ln -s $PWD/etc/X11/xorg.conf /etc/X11/xorg.conf
+
+## TODO: Add pacman hooks for rebuilding initramfs AND efi stub on:
+# - amd-ucode updates (see arch-efi-boot package)
+# - nvidia updates (see nvidia archwiki page)
+# - zfs updates
+
+## Setup DPI
+# Set X DPI and ensure it's enforced when the desktop environment starts
+ln -s $PWD/home/matthew/.Xresources ~/
+ln -s $PWD/home/matthew/.xinitrc ~/
+ln -s $PWD/home/matthew/.xsettingsd ~/
+
+# Set up GTK/GDK DPI notifications so those applications actually scale correctly
+ln -s $PWD/home/matthew/.xsettingsd ~/
+
+# Copy i3 config
+rm ~/.config/i3/config
+ln -s $PWD/home/matthew/.config/i3/config ~/.config/i3/config
+
+# TODO: Setup picom
+
+## Set up sddm
+systemctl enable sddm
+mkdir -p /etc/sddm.conf.d
+ln -s $PWD/etc/sddm.conf.d/sddm.conf /etc/sddm.conf.d/
+
+## Setup bluetooth
+yay -Sy --noconfirm --sudoloop \
+ bluez \
+ bluez-utils
+
+## Setup thunderbolt
+yay -Sy --noconfirm --sudoloop bolt
+
+## Setup audio
+# NOTE: May need to manually resolve package version conflicts with the `gst-*` packages
+yay -Sy --noconfirm --sudoloop \
+ pulseaudio \
+ pulseaudio-bluetooth \
+ pulseaudio-alsa \
+ pavucontrol \
+ spotify-launcher \
+ playerctl
+
+# Setup playerctl systemcd service
+ln -s $PWD/files/home/matthew/.config/systemd/user/playerctld.service ~/.config/systemd/user
+systemctl --user enable playerctld
+systemctl --user start playerctld
+
+# TODO: Setup playerctl zsh / bash autocompletion
+
+# Setup pulseaudio
+systemctl --user enable pulseaudio
+systemctl --user start pulseaudio
+
+## TODO: Setup fonts + terminal + ligatures
+yay -Sy --noconfirm --sudoloop nerd-font-git ttf-quicksand-variable 
+mkdir -p ~/.local/share/fonts
+ln -s $PWD/home/matthew/.local/share/fonts/Anurati-Regular.otf ~/.local/share/fonts/
+
+# Reload font cache
+fc-cache
+
+# Find font
+fc-list | grep -i nerd | grep -i mono | grep -i retina
+
+# Setup NVM, yarn bin path, npm bin path
+yay -Sy --noconfirm --sudoloop npm
+npm install stable
+
+# Setup rbenv, setup colorls
+yay -Sy --noconfirm --sudoloop rbenv ruby-build
+rbenv install 3.2.2
+rbenv global 3.2.2
+gem install colorls
+rbenv rehash
+rehash
+
+# Setup openjdk, 8, 11, 15
+yay -Sy --noconfirm --sudoloop jdk8-openjdk
+yay -Sy --noconfirm --sudoloop jdk9-openjdk
+yay -Sy --noconfirm --sudoloop jdk10-openjdk
+yay -Sy --noconfirm --sudoloop jdk11-openjdk
+yay -Sy --noconfirm --sudoloop jdk12-openjdk
+yay -Sy --noconfirm --sudoloop jdk13-openjdk
+yay -Sy --noconfirm --sudoloop jdk14-openjdk
+yay -Sy --noconfirm --sudoloop jdk15-openjdk
+
+# Setup rofi
+ln -s $PWD/files/home/matthew/.config/rofi $HOME/.config/rofi
+
+# Setup zsh, oh-my-zsh, zsh-syntax-highlighting, zsh-autosuggestions, zsh theme
+yay -Sy --noconfirm --sudoloop \
+ oh-my-zsh-git \
+ zsh-syntax-highlighting \
+ zsh-autosuggestions
+ln -s $PWD/files/home/matthew/.zshrc $HOME/.zshrc
+chsh $(which zsh)
+
+# Setup p10k
+yay -Sy --noconfirm --sudoloop zsh-theme-powerlevel10k
+ln -s $PWD/files/home/matthew/.p10k.zsh $HOME/.p10k.zsh
+
+# TODO: Zsh p10k theme
+
+# Setup nvim
+git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1
+ln -s $PWD/files/home/matthew/.config/nvchad/custom $HOME/.config/nvim/lua/custom
+# open nvim and allow nvchad to perform the initial setup
+nvim
+
+cd ~/.config/nvim/bundle/coc.nvim
+npm ci
+npm run build

@@ -37,6 +37,7 @@ export GPG_TTY=$TTY
 ## Configure Git
 git config --global user.name "Matthewacon"
 git config --global user.email "matthewjbarichello@gmail.com"
-git config --global user.signingkey $KEY_ID 
+git config --global user.signingkey $PRIV_KEY_ID 
 git config --global commit.gpgsign true
-unset KEY_ID
+unset PUB_KEY_ID
+unset PRIV_KEY_ID

@@ -1,0 +1,134 @@
+// define colors etc.
+* {
+    bg: #24283b33;
+    hv: #9274ca;
+    primary: #C5C8C6;
+    ug: #0B2447;
+    font: "FiraCode Nerd Font Ret 18";
+    background-color: @bg;
+    border: 0px;
+    kl: #7aa2f7;
+    black: #000000;
+}
+
+// defines different aspects of the window
+window {
+    width: 1920;
+    orientation: horizontal;
+    location: center;
+    anchor: center;
+    transparency: "real";
+    spacing: 0;
+    children: [ mainbox ];
+}
+
+mainbox {
+    spacing: 0;
+    children: [ inputbar, message, listview ];
+}
+
+inputbar {
+    color: @kl;
+    padding: 30px;
+    border: 0px 0px 5px 0px;
+    border-color: @primary;
+    border-radius: 0px 0px 0px 0px;
+}
+
+message {
+    padding: 0;
+    border-color: @primary;
+    border: 0px 1px 1px 1px;
+}
+
+entry, prompt, case-indicator {
+    text-font: inherit;
+    text-color: inherit;
+    background-color: @bg;
+}
+
+entry {
+    cursor: pointer;
+}
+
+prompt {
+    margin: 0px 5px 0px 0px;
+}
+
+prompt, entry {
+  background-color: #00000000;
+}
+
+listview {
+    layout: vertical;
+    spacing: 0px;
+    //padding: 8px;
+    lines: 7;
+    columns: 1;
+    border: 0px 0px 0px 0px;
+    border-radius: 0px 0px 0px 0px;
+    border-color: @primary;
+    dynamic: false;
+}
+
+element {
+    padding: 20px;
+    vertical-align: 1;
+    color: @kl;
+    font: inherit;
+}
+
+element-text {
+    //background-color: inherit;
+    //text-color: inherit;
+    highlight: underline;
+}
+
+element selected.normal {
+    color: @black;
+    background-color: @hv;
+}
+
+element normal active {
+    background-color: @hv;
+    color: @black;
+}
+
+element-icon {
+    horizontal-align: 0;
+    size: 30px;
+}
+
+element-text, element-icon {
+    background-color: #00000000;
+    text-color: inherit;
+}
+
+element normal urgent {
+    background-color: @primary;
+}
+
+element selected active {
+    background: @hv;
+    foreground: @bg;
+}
+
+button {
+    padding: 6px;
+    color: @primary;
+    horizonatal-align: 0.5;
+
+    border: 2px 0px 2px 2px;
+    border-radius: 4px 0px 0px 4px;
+    border-color: @primary;
+}
+
+button selected normal {
+    border: 2px 0px 2px 2px;
+    border-color: @primary;
+}
+
+scrollbar {
+    enabled: false;
+}
+
