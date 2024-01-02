@@ -1,0 +1,249 @@
+#!/bin/bash
+SCRIPT_DIR=$(dirname "$0") && [[ "$SCRIPT_DIR" == "." ]] && SCRIPT_DIR="$(pwd)"
+
+# Setup systemd-journald
+sudo rm "/etc/systemd/journald.conf"
+sudo ln -s "$SCRIPT_DIR/../common/files/etc/systemd/journald.conf" "/etc/systemd/journald.conf"
+sudo systemctl daemon-reload
+
+# Disable pcspkr
+ln -s "$SCRIPT_DIR/../common/files/etc/modprobe.d/nobeep.conf" "/etc/modprobe.d/nobeep.conf"
+
+# Setup initcpio
+## Symblink configuration files
+sudo rm "/etc/mkinitcpio.conf"
+sudo ln -s "$SCRIPT_DIR/files/etc/mkinitcpio.conf" "/etc/mkinitcpio.conf"
+sudo rm "/etc/mkinitcpio.d/linux.preset"
+sudo ln -s "$SCRIPT_DIR/files/etc/mkinitcpio.d/linux.preset" "/etc/mkinitcpio.d/linux.preset"
+
+## Rebuild initramfs and uki
+sudo mkinitcpio -p linux
+sudo efistub
+
+# Configure identities 
+ssh-keygen -t ed25519
+gpg --full-generate-key
+export PRIV_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
+export PUB_KEY_ID=$(gpg --list-public-keys --keyid-format=long Matthew | grep -i pub | awk '{split($2,dst,"/"); print dst[2]}')
+
+## Add SSH and GPG keys to GitHub/whatever else
+cat ~/.ssh/id_*.pub
+gpg --armor --export $PUB_KEY_ID
+unset PUB_KEY_ID
+
+## Configure Git
+git config --global user.name "Matthewacon"
+git config --global user.email "matthewjbarichello@gmail.com"
+git config --global user.signingkey $PRIV_KEY_ID 
+git config --global commit.gpgsign true
+unset PRIV_KEY_ID
+
+## Configure bash
+ln -s "$SCRIPT_DIR/files/home/matthew/.bashrc" "$HOME/.bashrc"
+
+# Add intel video drivers
+## Install all deps
+yay -Sy --noconfirm --sudoloop \
+ mesa \
+ lib32-mesa \
+ vulkan-intel \
+ lib32-vulkan-intel \
+ intel-media-driver \
+ acpi \
+ vulkan-icd-loader \
+ lib32-vulkan-icd-loader \
+ vulkan-tools \
+ ddcutil
+
+## Configure i915
+### Add GuC / HuC intel uC blob support and enable fastboot
+sudo ln -s "$SCRIPT_DIR/files/etc/modprobe.d/i915.conf" "/etc/modprobe.d/i915.conf"
+
+## Disable autoloading the pcspkr module because it's not 1980
+sudo ln -s "$SCRIPT_DIR/../common/files/etc/modprobe.d/nobeep.conf" "/etc/modprobe.d/nobeep.conf"
+
+## Rebuild initramfs and uki
+sudo mkinitcpio -p linux
+sudo efistub
+
+## Add user to i2c and video groups
+sudo usermod -aG i2c matthew
+sudo usermod -aG video matthew
+
+## Setup udev rule for video group
+sudo ln -s "$SCRIPT_DIR/files/etc/udev/rules.d/99-backlight.rules" "/etc/udev/rules.d/99-backlight.rules"
+
+# Desktop environment and applications
+## Install xorg
+## NOTE: Need to install xorg-server-git to receive patches for intel modesetting driver tearfree
+yay -Sy --noconfirm --sudoloop \
+ xorg-server-git \
+ xorg-xdpyinfo \
+ xorg-xrdb \
+ xorg-xinit \
+ xsettingsd \
+ xorg-xrandr \
+ xorg-xev \
+ sysfsutils
+
+## Install other applications
+yay -Sy --noconfirm --sudoloop \
+ i3-gaps \
+ dmenu \
+ j4-dmenu-desktop \
+ feh \
+ xwinwrap-git \
+ perl \
+ ffmpeg \
+ mpv \
+ vlc \
+ picom \
+ ripgrep \
+ fzf \
+ sddm \
+ firefox-nightly-bin \
+ kitty \
+ conky
+
+# Audio
+## Install sound firmware
+yay -Sy --noconfirm --sudoloop sof-firmware
+
+## Rebuild UKI with audio firmware
+sudo mkinitcpio -p linux
+sudo efistub
+
+## Install userspace sound utils
+yay -Sy --noconfirm --sudoloop \
+ pulseaudio \
+ pulseaudio-bluetooth \
+ bluez \
+ bluez-utils \
+ pulseaudio-alsa \
+ pavucontrol \
+ spotify-launcher \
+ playerctl
+
+## TODO: Setup playerctl systemd user service
+mkdir -p $HOME/.config/systemd/user/
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/systemd/user/playerctld.service" "$HOME/.config/systemd/user/playerctld.service"
+systemctl --user enable playerctld
+systemctl --user start playerctld
+
+## TODO: Setup pulseaudio systemd user service
+systemctl --user enable pulseaudio
+systemctl --user start pulseaudio
+
+# Setup fonts + terminal + ligatures
+## Install nerd fonts
+yay -Sy --noconfirm --sudoloop nerd-fonts-git ttf-quicksand-variable
+
+## Install custom fonts
+mkdir -p ~/.local/share/fonts
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.local/share/fonts/Anurati-Regular.otf" "$HOME/.local/share/fonts/"
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.local/share/fonts/KronaOne-Regular.ttf" "$HOME/.local/share/fonts/"
+
+## Reload font cache
+fc-cache
+
+## Find nerd font family
+fc-list | grep -i nerd | grep -i retina
+
+# Setup nvm
+yay -Sy --noconfirm --sudoloop nvm
+[ -z "$NVM_DIR" ] && export NVM_DIR="$HOME/.nvm"
+source /usr/share/nvm/nvm.sh
+source /usr/share/nvm/bash_completion
+source /usr/share/nvm/install-nvm-exec
+nvm install stable
+nvm alias default stable
+
+# Setup rbenv
+## Install ruby 3.2.2 environment
+yay -Sy --noconfirm --sudoloop rbenv ruby-build
+eval "$(rbenv init -)"
+rbenv install 3.2.2
+rbenv global 3.2.2
+
+## Install colorls
+gem install colorls
+rbenv rehash
+rehash
+
+# Setop openjdk
+yay -Sy --noconfirm --sudoloop \
+ jdk8-openjdk \
+ jdk11-openjdk
+
+## TODO: Openjdk 15
+
+# Rofi
+yay -Sy --noconfirm --sudoloop rofi
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/rofi" "$HOME/.config/rofi"
+
+# Setup shell
+## Setup zsh, oh-my-zsh, zsh-syntax-highlighting, zsh-autosuggestions, zsh theme
+yay -Sy --noconfirm --sudoloop \
+ zsh \
+ oh-my-zsh-git \
+ zsh-syntax-highlighting \
+ zsh-autosuggestions
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.zshrc" "$HOME/.zshrc"
+chsh -s $(which zsh)
+
+## Setup p10k
+yay -Sy --noconfirm --sudoloop zsh-theme-powerlevel10k
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.p10k.zsh" "$HOME/.p10k.zsh"
+
+# Setup nvim
+git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/nvchad" "$HOME/.config/nvchad"
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/nvchad/custom" "$HOME/.config/nvim/lua/custom"
+## NOTE: Open nvim and allow nvchad and all plugins to perform initial setup
+nvim
+
+## TODO: Configure CoC.nvim
+
+# Setup kitty
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/kitty" "$HOME/.config/kitty"
+
+# Setup docker
+yay -Sy --noconfirm --sudoloop docker
+sudo usermod -aG docker matthew
+
+# TODO: llvm, clang, lldb, gcc, gdb, cmake
+
+# TODO: Setup qemu and qemu-user
+
+# Setup sddm
+sudo mkdir -p /etc/sddm.conf.d
+sudo ln -s "$SCRIPT_DIR/../common/etc/sddm.conf.d/sddm.conf" "/etc/sddm.conf.d/sddm.conf"
+sudo systemctl enable sddm
+
+# Setup X11
+sudo ln -s "$SCRIPT_DIR/files/etc/X11/xorg.conf" "/etc/X11/xorg.conf"
+
+# Setup i3
+ln -s "$SCRIPT_DIR/files/home/matthew/.config/i3" "$HOME/.config/i3"
+## Setup xinitrc, xsettingsd, Xresources
+ln -s "$SCRIPT_DIR/files/home/matthew/.xinitrc" "/home/matthew/.xinitrc"
+## NOTE: To change the DPI, set the desired value in ~/.Xresources and that value *1024 in .xsettingsd
+ln -s "$SCRIPT_DIR/files/home/matthew/.Xresources" "/home/matthew/.Xresources"
+ln -s "$SCRIPT_DIR/files/home/matthew/.xsettingsd" "/home/matthew/.xsettingsd"
+
+## Setup picom
+## TODO: Setup toggle key
+ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/picom" "$HOME/.config/picom"
+
+## TODO: Setup animated background
+## TODO: Setup toggle key to be the same as picom
+
+## TODO: Setup keybinds for brightness+/brightness-
+## TODO: Setup keybinds for enabling / disabling trackpad
+## TODO: Setup keybind + timer for automatically locking screen with screensaver
+
+# TODO: Configure synaptics
+
+# TODO: Setup linux power management
+# TODO: Setup suspend / hibernate
+# TODO: Downclock machine

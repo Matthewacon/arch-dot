@@ -1,15 +1,17 @@
 local autocmd = vim.api.nvim_create_autocmd
 
--- TODO: Highlight keywords in comments
-vim.cmd([[
-syntax match commentKeywords /NOTE/
-highlight link commentKeywords Todo
-]])
+-- Disable line numbers in all terminal buffers
+autocmd(
+ {
+  "TermOpen",
+  "TermEnter",
+ },
+ {
+  command = [[setlocal nonumber norelativenumber]]
+ }
+)
 
---syntax keyword comment_keywords TODO contained<CR>
---syntax keyword comment_keywords FIXME contained<CR>
---syntax keyword comment_keywords NOTE contained<CR>
---highlight comment_keywords guibg=#0db9d7<CR>
+-- TODO: Set foldmethod=syntax for git and fugitive buffers only
 
 -- TODO: Automatically highlight trailing whitespace in buffers
 --local counter = 0

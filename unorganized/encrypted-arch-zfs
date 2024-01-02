@@ -179,7 +179,8 @@ yay -Syu --sudoloop --noconfirm \
  zfs-utils \
  mkinitcpio-sd-zfs \
  mkinitcpio-firmware \
- systemd-ukify
+ systemd-ukify \
+ arch-efistub-git
 exit
 
 ## Set up initramfs configuration
@@ -228,7 +229,7 @@ export KEYFILE_UUID="$(blkid /dev/keyfileDiskOrPart1 -o value | tr '\n' ' ' | aw
 echo "spl.spl_hostid=0x$(hostid) zfs=zroot/root zfs_force=1 root=zfs:zroot/root intel_iommu=on rw" > /boot/cmdline.txt
 echo "zroot UUID=$CRYPT_UUID /key.bin:UUID=$KEYFILE_UUID luks,keyfile-timeout=10s,password-echo=no" > /etc/crypttab.initramfs
 mkinitcpio -p linux
-build_efi_kernels
+efistub
 
 ## Generate fstab (from outside of arch-chroot)
 exit
@@ -250,12 +251,9 @@ systemctl enable dhcpcd
 ## Set up hostname
 echo "MY_HOSTNAME" > /etc/hostname
 
-## Disable autoloading the pcspkr module because it's not 1980
-echo "blacklist pcspkr" > /etc/modprobe.d/nobeep.conf
-
 ## Rebuild initramfs and efi shim
 mkinitcpio -p linux
-build_efi_kernels
+efistub
 
 ## Add efiboot entry
 # NOTE: Run `efibootmgr` to find a free bootnum before running these commands

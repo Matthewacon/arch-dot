@@ -70,15 +70,17 @@ local plugins = {
   end
  },
  -- Add todo-comments for easy highlighting and navigation of comment keywords
+ -- TODO: Remove weird bg behind keyword text; fix highlight colour for TODO to match theme
  {
   "folke/todo-comments.nvim",
+  after = "base46",
   lazy = false,
   opts = {
    highlight = {
     before = "",
     after = "",
     keyword = "fg"
-   }
+   },
   }
  }
 }

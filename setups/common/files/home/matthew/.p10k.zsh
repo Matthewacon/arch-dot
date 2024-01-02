@@ -105,6 +105,7 @@
     timewarrior             # timewarrior tracking status (https://timewarrior.net/)
     taskwarrior             # taskwarrior task count (https://taskwarrior.org/)
     # cpu_arch              # CPU architecture
+    battery
     time                    # current time
     # =========================[ Line #2 ]=========================
     newline

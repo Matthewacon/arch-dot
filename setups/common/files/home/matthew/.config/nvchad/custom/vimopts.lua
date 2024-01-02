@@ -23,7 +23,7 @@ vim.opt.wrap = false
 -- Enable mouse usage in all modes
 vim.opt.mouse = "a"
 -- Enable splitdiffs for vim-fugitive
-vim.opt.foldmethod = "syntax"
+--vim.opt.foldmethod = "syntax"
 -- Enable usage of `.nvimrc.lua` files for directory-specific configurations, see next option for security implications
 vim.opt.exrc = true
 -- Disable shell and write commands in `.nvimrc` files

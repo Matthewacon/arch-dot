@@ -1,0 +1,27 @@
+# NOTE: All of these were suggested from the archwiki but none of them work :)
+#ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/intel_backlight/brightness"
+#ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+rw /sys/class/backlight/intel_backlight/brightness"
+
+#ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+#ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+w /sys/class/backlight/%k/brightness"
+#ACTION=="add", SUBSYSTEM=="leds", RUN+="/bin/chgrp video /sys/class/leds/%k/brightness"
+#ACTION=="add", SUBSYSTEM=="leds", RUN+="/bin/chmod g+w /sys/class/leds/%k/brightness"
+
+# NOTE: use `udevadm info -a -p /sys/class/.../...` to get udev info for the
+# target device(s)
+
+# FIX: Does not work on boot
+# change file permissions and group for intel backlight brightness file
+#KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+#KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+rw /sys/class/backlight/%k/brightness"
+#ACTION=="add", KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+#ACTION=="add", KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+rw /sys/class/backlight/%k/brightness"
+ACTION=="*", KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+ACTION=="*", KERNEL=="intel_backlight", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+rw /sys/class/backlight/%k/brightness"
+
+# change file permissions and group for all leds
+# NOTE: each of the led groups use a different kernel
+KERNEL=="*", SUBSYSTEM=="leds", RUN+="/usr/bin/chgrp video /sys/class/leds/%k/brightness"
+KERNEL=="*", SUBSYSTEM=="leds", RUN+="/usr/bin/chmod g+rw /sys/class/leds/%k/brightness"
+#ACTION=="add", KERNEL=="*", SUBSYSTEM=="leds", RUN+="/usr/bin/chgrp video /sys/class/leds/%k/brightness"
+#ACTION=="add", KERNEL=="*", SUBSYSTEM=="leds", RUN+="/usr/bin/chmod g+rw /sys/class/leds/%k/brightness"
