@@ -20,7 +20,7 @@ sudo ln -s "$SCRIPT_DIR/files/etc/mkinitcpio.d/linux.preset" "/etc/mkinitcpio.d/
 sudo mkinitcpio -p linux
 sudo efistub
 
-# Configure identities 
+# Configure identities
 ssh-keygen -t ed25519
 gpg --full-generate-key
 export PRIV_KEY_ID=$(gpg --list-secret-keys --keyid-format=long Matthew | grep -i ssb | awk '{split($2,dst,"/"); print dst[2]}')
@@ -34,7 +34,7 @@ unset PUB_KEY_ID
 ## Configure Git
 git config --global user.name "Matthewacon"
 git config --global user.email "matthewjbarichello@gmail.com"
-git config --global user.signingkey $PRIV_KEY_ID 
+git config --global user.signingkey $PRIV_KEY_ID
 git config --global commit.gpgsign true
 unset PRIV_KEY_ID
 
@@ -104,6 +104,9 @@ yay -Sy --noconfirm --sudoloop \
  firefox-nightly-bin \
  kitty \
  conky
+
+# Userspace thunderbolt control
+yay -Sy --noconfirm --sudoloop bolt
 
 # Audio
 ## Install sound firmware
@@ -211,7 +214,16 @@ ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/kitty" "$HOME/.config/ki
 yay -Sy --noconfirm --sudoloop docker
 sudo usermod -aG docker matthew
 
-# TODO: llvm, clang, lldb, gcc, gdb, cmake
+# Install llvm, clang, lldb, gcc, gdb, cmake, man pages, moreutils
+yay -Sy --noconfirm --sudoloop \
+ llvm \
+ clang \
+ lldb \
+ gcc \
+ gdb \
+ cmake \
+ man-pages \
+ moreutils
 
 # TODO: Setup qemu and qemu-user
 
@@ -235,10 +247,7 @@ ln -s "$SCRIPT_DIR/files/home/matthew/.xsettingsd" "/home/matthew/.xsettingsd"
 ## TODO: Setup toggle key
 ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/picom" "$HOME/.config/picom"
 
-## TODO: Setup animated background
-## TODO: Setup toggle key to be the same as picom
-
-## TODO: Setup keybinds for brightness+/brightness-
+## TODO: Setup animated background (setup toggle key to be the same as picom)
 ## TODO: Setup keybinds for enabling / disabling trackpad
 ## TODO: Setup keybind + timer for automatically locking screen with screensaver
 

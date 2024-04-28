@@ -4,10 +4,13 @@ vim.opt.tabstop = 1
 vim.opt.shiftwidth = 1
 -- Always expand tabs
 vim.opt.expandtab = true
--- Enable smart indent so indent detection works
-vim.opt.smartindent = true
--- Disable auto indent
-vim.opt.autoindent = false
+vim.cmd([[
+ set noautoindent
+ set nosmartindent
+ set nocindent
+ set indentexpr=
+ filetype indent off
+]])
 -- Always keep at least 8 lines above and below cursor
 vim.opt.scrolloff = 8
 -- Always keep at least 15 characters to the left and right of the cursor
