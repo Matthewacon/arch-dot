@@ -213,6 +213,8 @@ ln -s "$SCRIPT_DIR/../common/files/home/matthew/.config/kitty" "$HOME/.config/ki
 # Setup docker
 yay -Sy --noconfirm --sudoloop docker
 sudo usermod -aG docker matthew
+sudo ln -s $PWD/files/etc/systemd/system/docker.service.d/ /etc/systemd/system
+sudo ln -s $PWD/files/etc/docker/ /etc/docker
 
 # Install llvm, clang, lldb, gcc, gdb, cmake, man pages, moreutils
 yay -Sy --noconfirm --sudoloop \

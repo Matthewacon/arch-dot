@@ -1,0 +1,8 @@
+# root
+UUID=ROOT_UUID / ext4 rw,noatime
+
+# ESP
+UUID=EFI_UUID /boot/efi vfat rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8	0 2
+
+#tmpfs ramdisk
+tmpfs	/tmp tmpfs defaults,noatime,mode=1777	0	0

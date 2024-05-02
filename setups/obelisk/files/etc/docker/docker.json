@@ -1,0 +1,12 @@
+{
+ "features": {
+  "buildkit": true
+ },
+ "builder": {
+  "entitlements": {
+    "network-host": true,
+    "security-insecure": true
+  }
+ },
+ "experimental": true
+}

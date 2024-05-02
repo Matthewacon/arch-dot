@@ -1,0 +1,29 @@
+name: arch-live-usb
+on:
+  push:
+  schedule:
+    - cron: '0 8 * * MON'
+
+#TODO: hijack the docker daemon in the runner to be able to build this image
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      #TODO: update to use manual build commands and export a final image
+      - name: Build and save to local image
+        uses: docker/build-push-action@v5
+        with:
+          push: false
+          context: ./.github/workflows/arch-live-usb
+          file: ./.github/workflows/arch-live-usb/Dockerfile
+          outputs: type=docker,dest=arch-live-usb.tar
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-live-usb.img
+          compression-level: 9
+          path: arch-live-usb.img
