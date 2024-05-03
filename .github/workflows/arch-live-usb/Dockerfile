@@ -279,5 +279,7 @@ RUN /usr/bin/bash -c "\
 
 #copy final image and busybox into empty layer
 FROM scratch AS final
+ENTRYPOINT ["/bin/busybox"]
+CMD ["sh"]
 COPY --from=image-builder /root/arch-live-usb.img /
 COPY --from=busybox-builder /busybox/* /
