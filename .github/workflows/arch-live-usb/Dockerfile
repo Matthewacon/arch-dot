@@ -5,9 +5,6 @@
 #To build this image:
 #docker -D buildx build . --allow security.insecure -t arch-live-usb:latest --build-arg CACHEBUST="$(date)" --progress=plain
 
-#TODO: use a bind mount in the last step to copy the disk image out of the
-#intermediate layer and then add an empty layer with absolutely nothing
-
 FROM archlinux:latest AS base
 
 WORKDIR /root
