@@ -249,7 +249,7 @@ RUN --security=insecure arch-chroot /installation /usr/bin/bash -c "\
 #bust cache here so the loop device is always setup if the dockerfile is re-run
 FROM installation-builder AS image-builder
 
-#set up 8GB disk image
+#set up disk image
 COPY files/make-disk-image.sh .
 RUN ./make-disk-image.sh
 
